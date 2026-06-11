@@ -1,0 +1,31 @@
+# =============================================================================
+# kafka-ui.yml — Optional config file for Kafka UI
+#
+# Place this next to run-kafka-ui.sh
+# Edit cluster name, bootstrap servers, or add more clusters here.
+# =============================================================================
+
+kafka:
+  clusters:
+    - name: local-kraft
+      bootstrapServers: localhost:9092
+
+      # Uncomment if you have Schema Registry running locally
+      # schemaRegistry: http://localhost:8081
+
+      # Uncomment for SSL/SASL (PAT environment, future use)
+      # properties:
+      #   security.protocol: SASL_SSL
+      #   sasl.mechanism: PLAIN
+      #   sasl.jaas.config: >
+      #     org.apache.kafka.common.security.plain.PlainLoginModule required
+      #     username="user" password="password";
+
+server:
+  port: 8080
+
+# Reduce noise in logs
+logging:
+  level:
+    root: WARN
+    com.provectus: INFO

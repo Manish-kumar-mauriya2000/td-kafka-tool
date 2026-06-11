@@ -1,0 +1,19 @@
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%highlight(%-5level)] %logger{30} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Keep Kafka client internals quiet — only show warnings -->
+    <logger name="org.apache.kafka" level="WARN"/>
+    <logger name="kafka" level="WARN"/>
+
+    <!-- Our tool at INFO -->
+    <logger name="com.tdvps.kafka" level="INFO"/>
+
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
