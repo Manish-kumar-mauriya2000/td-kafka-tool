@@ -71,7 +71,7 @@ public class TdvpsKafkaConsumer implements AutoCloseable {
             int totalRecords = 0;
 
             log.info("Starting poll loop on topic '{}' (max empty polls: {})",
-                options.getTopic(), MAX_EMPTY_POLLS);
+                    options.getTopic(), MAX_EMPTY_POLLS);
 
             while (running) {
                 ConsumerRecords<String, byte[]> records = kafkaConsumer.poll(POLL_TIMEOUT);
@@ -82,7 +82,7 @@ public class TdvpsKafkaConsumer implements AutoCloseable {
 
                     if (emptyPollCount >= MAX_EMPTY_POLLS) {
                         log.info("Received {} consecutive empty polls — shutting down gracefully.",
-                            MAX_EMPTY_POLLS);
+                                MAX_EMPTY_POLLS);
                         break;
                     }
                     continue;
@@ -92,14 +92,12 @@ public class TdvpsKafkaConsumer implements AutoCloseable {
                 emptyPollCount = 0;
 
                 for (ConsumerRecord<String, byte[]> raw : records) {
-                    if (options.hasKeyFilter()) {
-                        if (raw.key() == null || !raw.key().contains(options.getFilterKey())) {
-                            continue;
-                        }
-                    }
-
                     TdvpsRecord record = deserialize(raw);
-                    printer.print(record);
+
+                    if (options.hasKeyFilter() && !matchesFilter(raw.key(), record, options.getFilterKey())) {
+                        continue;
+                    }
+                    printer.print(record, options.getFilterKey());
                     totalRecords++;
 
                     if (options.isLimited() && totalRecords >= options.getMaxRecords()) {
@@ -116,6 +114,17 @@ public class TdvpsKafkaConsumer implements AutoCloseable {
         } finally {
             printer.printSummary();
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Filter: checks Kafka key AND record_body JSON fields
+    // -------------------------------------------------------------------------
+
+    private boolean matchesFilter(String key, TdvpsRecord record, String filterKey) {
+        if (key != null && key.contains(filterKey)) return true;
+        if (record.getRecordBodyJson() != null
+                && record.getRecordBodyJson().toString().contains(filterKey)) return true;
+        return false;
     }
 
     // -------------------------------------------------------------------------
@@ -166,11 +175,11 @@ public class TdvpsKafkaConsumer implements AutoCloseable {
             for (Map.Entry<TopicPartition, OffsetAndTimestamp> e : offsets.entrySet()) {
                 if (e.getValue() != null) {
                     log.info("Seeking {} to offset {} (atTime={})",
-                        e.getKey(), e.getValue().offset(), options.getAtTimeMs());
+                            e.getKey(), e.getValue().offset(), options.getAtTimeMs());
                     consumer.seek(e.getKey(), e.getValue().offset());
                 } else {
                     log.warn("No offset found for {} at time {} — seeking to end",
-                        e.getKey(), options.getAtTimeMs());
+                            e.getKey(), options.getAtTimeMs());
                     consumer.seekToEnd(Collections.singletonList(e.getKey()));
                 }
             }
@@ -230,7 +239,7 @@ public class TdvpsKafkaConsumer implements AutoCloseable {
                 record.setRecordUuid(envelope.path("record_uuid").asText(null));
                 record.setDatasetStorageUuid(envelope.path("dataset_storage_uuid").asText(null));
                 record.setRecordBodyCompression(
-                    envelope.path("record_body_compression").asText("NONE"));
+                        envelope.path("record_body_compression").asText("NONE"));
 
                 JsonNode ts = envelope.path("record_timestamp");
                 if (!ts.isMissingNode()) {
@@ -266,8 +275,8 @@ public class TdvpsKafkaConsumer implements AutoCloseable {
         // Decode the body bytes
         if (record.getRecordBodyBytes() != null && record.getRecordBodyJson() == null) {
             JsonNode decoded = decoder.decode(
-                record.getRecordBodyBytes(),
-                record.getRecordBodyCompression());
+                    record.getRecordBodyBytes(),
+                    record.getRecordBodyCompression());
             record.setRecordBodyJson(decoded);
         }
 
@@ -283,9 +292,9 @@ public class TdvpsKafkaConsumer implements AutoCloseable {
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, options.getBootstrapServers());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, options.getGroupId());
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-            StringDeserializer.class.getName());
+                StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-            ByteArrayDeserializer.class.getName());
+                ByteArrayDeserializer.class.getName());
         // Don't commit offsets automatically — this is a read-only support tool
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
         // Don't reset to earliest on unknown group (only when explicitly requested)

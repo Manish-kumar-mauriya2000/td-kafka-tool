@@ -36,7 +36,7 @@ public class RecordPrinter {
     /**
      * Print a fully decoded TdvpsRecord.
      */
-    public void print(TdvpsRecord record) {
+    public void print(TdvpsRecord record,String filterKey) {
         recordCount++;
 
         System.out.println(DIVIDER);
@@ -72,6 +72,16 @@ public class RecordPrinter {
         // ── Decoded payload ──────────────────────────────────────────────────
         JsonNode body = record.getRecordBodyJson();
         if (body != null) {
+
+            boolean isFiltered = filterKey != null && !filterKey.isBlank();
+            if(isFiltered){
+                //Filter mode - skip summary, show complete JSON with all nested objects
+                System.out.println(" [record_body — Full Payload  filter: " + filterKey + "]");
+            } else {
+                // Normal mode - show summary highlights first
+                //System.out.println(" [record_body — Decoded Payload]");
+                printSummaryFields(body);
+            }
             System.out.println("  [record_body — Decoded Payload]");
             printSummaryFields(body);
             System.out.println("  [Full JSON]");
