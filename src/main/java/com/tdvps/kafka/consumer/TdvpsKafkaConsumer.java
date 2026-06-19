@@ -120,11 +120,41 @@ public class TdvpsKafkaConsumer implements AutoCloseable {
     // Filter: checks Kafka key AND record_body JSON fields
     // -------------------------------------------------------------------------
 
-    private boolean matchesFilter(String key, TdvpsRecord record, String filterKey) {
-        if (key != null && key.contains(filterKey)) return true;
-        if (record.getRecordBodyJson() != null
-                && record.getRecordBodyJson().toString().contains(filterKey)) return true;
-        return false;
+    /**
+     * Matches filter in key:value format against record_body JSON fields.
+     * Example: workflowStatus:Committed  -> checks body.get("workflowStatus") == "Committed"
+     * Special keys "key" / "record_uuid" match against the Kafka message key.
+     */
+    private boolean matchesFilter(String kafkaKey, TdvpsRecord record, String filter) {
+        // Strip optional curly braces / quotes — supports "--filter {workflowStatus:Committed}"
+        // or "--filter "workflowStatus":"Committed"" style input
+        filter = filter.trim();
+        if (filter.startsWith("{") && filter.endsWith("}")) {
+            filter = filter.substring(1, filter.length() - 1).trim();
+        }
+        filter = filter.replace("\"", "").replace("'", "");
+
+        int sep = filter.indexOf(':');
+        if (sep < 0) {
+            // No colon — fall back to plain substring search across whole payload
+            if (kafkaKey != null && kafkaKey.contains(filter)) return true;
+            return record.getRecordBodyJson() != null
+                    && record.getRecordBodyJson().toString().contains(filter);
+        }
+
+        String fieldName = filter.substring(0, sep).trim();
+        String expectedValue = filter.substring(sep + 1).trim();
+
+        // Allow filtering on the Kafka message key (record_uuid)
+        if (fieldName.equalsIgnoreCase("key") || fieldName.equalsIgnoreCase("record_uuid")) {
+            return kafkaKey != null && kafkaKey.equalsIgnoreCase(expectedValue);
+        }
+
+        if (record.getRecordBodyJson() == null) return false;
+        com.fasterxml.jackson.databind.JsonNode field = record.getRecordBodyJson().get(fieldName);
+        if (field == null || field.isNull()) return false;
+
+        return field.asText().equalsIgnoreCase(expectedValue);
     }
 
     // -------------------------------------------------------------------------

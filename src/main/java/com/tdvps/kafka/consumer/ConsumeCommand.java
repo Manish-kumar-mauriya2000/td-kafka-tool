@@ -36,18 +36,18 @@ import picocli.CommandLine.Option;
  *
  *   # Filter by key substring
  *   java -jar tdvps-kafka-tool.jar consume \
- *       --topic my-topic --filter-key SUPPORT1
+ *       --topic my-topic --filter traderID:SUPPORT1
  */
 @Command(
-    name = "consume",
-    mixinStandardHelpOptions = true,
-    description = {
-        "",
-        "Read and decode records from a TDVPS Kafka topic.",
-        "Decodes record_body (bytes → UTF-8 → JSON) and pretty-prints payloads.",
-        "Shuts down after @|yellow " + ConsumeCommand.MAX_EMPTY_POLLS_DESC + " consecutive empty polls|@.",
-        ""
-    }
+        name = "consume",
+        mixinStandardHelpOptions = true,
+        description = {
+                "",
+                "Read and decode records from a TDVPS Kafka topic.",
+                "Decodes record_body (bytes → UTF-8 → JSON) and pretty-prints payloads.",
+                "Shuts down after @|yellow " + ConsumeCommand.MAX_EMPTY_POLLS_DESC + " consecutive empty polls|@.",
+                ""
+        }
 )
 public class ConsumeCommand implements Runnable {
 
@@ -58,7 +58,7 @@ public class ConsumeCommand implements Runnable {
 
     @Option(names = {"-t", "--topic"}, required = true,
             description = "Kafka topic to consume from.\n"
-                + "Example: cpa02_app_tds_tdvps_positions_egress_ged_positions")
+                    + "Example: cpa02_app_tds_tdvps_positions_egress_ged_positions")
     private String topic;
 
     // ── Connection ───────────────────────────────────────────────────────────
@@ -77,19 +77,19 @@ public class ConsumeCommand implements Runnable {
 
     @Option(names = {"-p", "--partition"},
             description = "Specific partition to read (default: all partitions). "
-                + "Use -1 for all.",
+                    + "Use -1 for all.",
             defaultValue = "-1")
     private int partition;
 
     @Option(names = {"-o", "--offset"},
             description = "Start offset. 0 = earliest (beginning), N = exact offset. "
-                + "Omit to start from latest.",
+                    + "Omit to start from latest.",
             defaultValue = "-1")
     private long offset;
 
     @Option(names = {"--at-time"},
             description = "Seek to first record at or after this epoch-millisecond timestamp. "
-                + "Overrides --offset.",
+                    + "Overrides --offset.",
             defaultValue = "-1")
     private long atTimeMs;
 
@@ -98,8 +98,10 @@ public class ConsumeCommand implements Runnable {
             defaultValue = "0")
     private int maxRecords;
 
-    @Option(names = {"--filter-key"},
-            description = "Only display records whose key contains this string.")
+    @Option(names = {"--filter"},
+            description = "Filter by field in record_body. Format: key:value\n"
+                    + "Example: --filter workflowStatus:Committed\n"
+                    + "Matches exact field value (case-insensitive).")
     private String filterKey;
 
     // ── Output ───────────────────────────────────────────────────────────────
@@ -113,18 +115,18 @@ public class ConsumeCommand implements Runnable {
     @Override
     public void run() {
         ConsumerOptions opts = new ConsumerOptions()
-            .topic(topic)
-            .bootstrapServers(bootstrapServers)
-            .groupId(groupId)
-            .partition(partition)
-            .offset(offset)
-            .atTimeMs(atTimeMs)
-            .maxRecords(maxRecords)
-            .filterKey(filterKey)
-            .pretty(!noP);
+                .topic(topic)
+                .bootstrapServers(bootstrapServers)
+                .groupId(groupId)
+                .partition(partition)
+                .offset(offset)
+                .atTimeMs(atTimeMs)
+                .maxRecords(maxRecords)
+                .filterKey(filterKey)
+                .pretty(!noP);
 
         log.info("Starting TDVPS consumer — topic={} partition={} offset={} atTimeMs={}",
-            topic, partition, offset, atTimeMs);
+                topic, partition, offset, atTimeMs);
 
         try (TdvpsKafkaConsumer consumer = new TdvpsKafkaConsumer(opts)) {
             consumer.consume();
